@@ -1,6 +1,11 @@
 # SystemBackupAndRestoreTool
 基于Python的系统备份还原工具，提供图形界面，支持Windows平台的文件和系统备份还原操作
 
+## 版本
+
+当前版本：V0.1.1
+
+
 ## 功能特点
 
 - **图形界面**：使用tkinter实现的直观图形界面，操作简单易用

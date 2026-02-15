@@ -2,25 +2,48 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os
 import threading
+import json
 from .backup_restore import BackupRestore
 from .utils import format_size
+from . import __version__
 
 class BackupRestoreGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("系统备份还原工具")
-        self.root.geometry("600x500")
+        self.root.title(f"系统备份还原工具 - V{__version__}")
+        self.root.geometry("700x550")
         self.root.resizable(True, True)
+        # 设置窗口图标（如果有）
+        # self.root.iconbitmap("icon.ico")
 
         self.backup_restore = BackupRestore()
+
+        # 设置主题颜色
+        self.style = ttk.Style()
+        try:
+            # 尝试使用系统主题
+            self.style.theme_use('vista')
+        except:
+            pass
+        
+        # 自定义样式
+        self.style.configure('TLabelFrame', padding=10, relief='ridge')
+        self.style.configure('TButton', padding=5)
+        self.style.configure('TProgressbar', thickness=15)
 
         # 创建主框架
         self.main_frame = ttk.Frame(root, padding="20")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
+        # 创建标题标签
+        title_frame = ttk.Frame(self.main_frame)
+        title_frame.pack(fill=tk.X, pady=10)
+        title_label = ttk.Label(title_frame, text="系统备份还原工具", font=('微软雅黑', 16, 'bold'))
+        title_label.pack(anchor=tk.CENTER)
+
         # 创建标签页
         self.notebook = ttk.Notebook(self.main_frame)
-        self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.notebook.pack(fill=tk.BOTH, expand=True, pady=10)
 
         # 备份标签页
         self.backup_tab = ttk.Frame(self.notebook)
@@ -30,61 +53,86 @@ class BackupRestoreGUI:
         self.restore_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.restore_tab, text="还原")
 
+        # 设置标签页
+        self.settings_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.settings_tab, text="设置")
+
         # 初始化备份标签页
         self.init_backup_tab()
 
         # 初始化还原标签页
         self.init_restore_tab()
 
+        # 初始化设置标签页
+        self.init_settings_tab()
+
+        # 加载配置
+        self.config_file = os.path.join(os.path.expanduser("~"), ".backup_restore_config.json")
+        self.load_config()
+
     def init_backup_tab(self):
         """初始化备份标签页"""
+        # 创建备份标签页的主框架
+        backup_main_frame = ttk.Frame(self.backup_tab, padding=10)
+        backup_main_frame.pack(fill=tk.BOTH, expand=True)
+        
         # 源目录选择
-        source_frame = ttk.LabelFrame(self.backup_tab, text="源目录", padding="10")
+        source_frame = ttk.LabelFrame(backup_main_frame, text="源目录", padding=15)
         source_frame.pack(fill=tk.X, pady=10)
 
         self.source_var = tk.StringVar()
-        source_entry = ttk.Entry(source_frame, textvariable=self.source_var, width=50)
+        source_entry = ttk.Entry(source_frame, textvariable=self.source_var, font=('微软雅黑', 10))
         source_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-        source_button = ttk.Button(source_frame, text="浏览", command=self.select_source_dir)
+        source_button = ttk.Button(source_frame, text="浏览", command=self.select_source_dir, width=10)
         source_button.pack(side=tk.RIGHT)
 
         # 备份路径选择
-        backup_frame = ttk.LabelFrame(self.backup_tab, text="备份路径", padding="10")
+        backup_frame = ttk.LabelFrame(backup_main_frame, text="备份路径", padding=15)
         backup_frame.pack(fill=tk.X, pady=10)
 
         self.backup_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "backups"))
-        backup_entry = ttk.Entry(backup_frame, textvariable=self.backup_var, width=50)
+        backup_entry = ttk.Entry(backup_frame, textvariable=self.backup_var, font=('微软雅黑', 10))
         backup_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-        backup_button = ttk.Button(backup_frame, text="浏览", command=self.select_backup_dir)
+        backup_button = ttk.Button(backup_frame, text="浏览", command=self.select_backup_dir, width=10)
         backup_button.pack(side=tk.RIGHT)
 
-        # 压缩选项
-        compress_frame = ttk.LabelFrame(self.backup_tab, text="备份选项", padding="10")
-        compress_frame.pack(fill=tk.X, pady=10)
+        # 备份选项
+        options_frame = ttk.LabelFrame(backup_main_frame, text="备份选项", padding=15)
+        options_frame.pack(fill=tk.X, pady=10)
 
+        # 压缩选项
+        compress_frame = ttk.Frame(options_frame)
+        compress_frame.pack(anchor=tk.W, pady=5)
         self.compress_var = tk.BooleanVar(value=True)
         compress_check = ttk.Checkbutton(compress_frame, text="压缩备份", variable=self.compress_var)
         compress_check.pack(anchor=tk.W)
 
         # 备份按钮
-        button_frame = ttk.Frame(self.backup_tab)
-        button_frame.pack(fill=tk.X, pady=10)
+        button_frame = ttk.Frame(backup_main_frame)
+        button_frame.pack(fill=tk.X, pady=15)
 
-        self.backup_button = ttk.Button(button_frame, text="开始备份", command=self.start_backup)
-        self.backup_button.pack(side=tk.LEFT, padx=(0, 10))
+        # 居中按钮
+        button_center_frame = ttk.Frame(button_frame)
+        button_center_frame.pack(anchor=tk.CENTER)
+        
+        self.backup_button = ttk.Button(button_center_frame, text="开始备份", command=self.start_backup, width=15)
+        self.backup_button.pack(side=tk.LEFT, padx=(0, 20))
 
-        self.cancel_backup_button = ttk.Button(button_frame, text="取消", command=self.cancel_backup, state=tk.DISABLED)
+        self.cancel_backup_button = ttk.Button(button_center_frame, text="取消", command=self.cancel_backup, state=tk.DISABLED, width=10)
         self.cancel_backup_button.pack(side=tk.LEFT)
 
         # 进度条
-        self.backup_progress = ttk.Progressbar(self.backup_tab, orient=tk.HORIZONTAL, length=100, mode='determinate')
-        self.backup_progress.pack(fill=tk.X, pady=10)
+        progress_frame = ttk.LabelFrame(backup_main_frame, text="备份进度", padding=15)
+        progress_frame.pack(fill=tk.X, pady=10)
+        
+        self.backup_progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=100, mode='determinate')
+        self.backup_progress.pack(fill=tk.X, pady=5)
 
         # 状态信息
         self.backup_status = tk.StringVar(value="就绪")
-        status_label = ttk.Label(self.backup_tab, textvariable=self.backup_status)
+        status_label = ttk.Label(progress_frame, textvariable=self.backup_status, font=('微软雅黑', 10))
         status_label.pack(anchor=tk.W, pady=5)
 
         # 备份线程
@@ -93,45 +141,56 @@ class BackupRestoreGUI:
 
     def init_restore_tab(self):
         """初始化还原标签页"""
+        # 创建还原标签页的主框架
+        restore_main_frame = ttk.Frame(self.restore_tab, padding=10)
+        restore_main_frame.pack(fill=tk.BOTH, expand=True)
+        
         # 备份文件选择
-        backup_file_frame = ttk.LabelFrame(self.restore_tab, text="备份文件", padding="10")
+        backup_file_frame = ttk.LabelFrame(restore_main_frame, text="备份文件", padding=15)
         backup_file_frame.pack(fill=tk.X, pady=10)
 
         self.restore_file_var = tk.StringVar()
-        backup_file_entry = ttk.Entry(backup_file_frame, textvariable=self.restore_file_var, width=50)
+        backup_file_entry = ttk.Entry(backup_file_frame, textvariable=self.restore_file_var, font=('微软雅黑', 10))
         backup_file_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-        backup_file_button = ttk.Button(backup_file_frame, text="浏览", command=self.select_restore_file)
+        backup_file_button = ttk.Button(backup_file_frame, text="浏览", command=self.select_restore_file, width=10)
         backup_file_button.pack(side=tk.RIGHT)
 
         # 还原路径选择
-        restore_frame = ttk.LabelFrame(self.restore_tab, text="还原路径", padding="10")
+        restore_frame = ttk.LabelFrame(restore_main_frame, text="还原路径", padding=15)
         restore_frame.pack(fill=tk.X, pady=10)
 
         self.restore_path_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "restore"))
-        restore_entry = ttk.Entry(restore_frame, textvariable=self.restore_path_var, width=50)
+        restore_entry = ttk.Entry(restore_frame, textvariable=self.restore_path_var, font=('微软雅黑', 10))
         restore_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
 
-        restore_button = ttk.Button(restore_frame, text="浏览", command=self.select_restore_dir)
+        restore_button = ttk.Button(restore_frame, text="浏览", command=self.select_restore_dir, width=10)
         restore_button.pack(side=tk.RIGHT)
 
         # 还原按钮
-        button_frame = ttk.Frame(self.restore_tab)
-        button_frame.pack(fill=tk.X, pady=10)
+        button_frame = ttk.Frame(restore_main_frame)
+        button_frame.pack(fill=tk.X, pady=15)
 
-        self.restore_button = ttk.Button(button_frame, text="开始还原", command=self.start_restore)
-        self.restore_button.pack(side=tk.LEFT, padx=(0, 10))
+        # 居中按钮
+        button_center_frame = ttk.Frame(button_frame)
+        button_center_frame.pack(anchor=tk.CENTER)
+        
+        self.restore_button = ttk.Button(button_center_frame, text="开始还原", command=self.start_restore, width=15)
+        self.restore_button.pack(side=tk.LEFT, padx=(0, 20))
 
-        self.cancel_restore_button = ttk.Button(button_frame, text="取消", command=self.cancel_restore, state=tk.DISABLED)
+        self.cancel_restore_button = ttk.Button(button_center_frame, text="取消", command=self.cancel_restore, state=tk.DISABLED, width=10)
         self.cancel_restore_button.pack(side=tk.LEFT)
 
         # 进度条
-        self.restore_progress = ttk.Progressbar(self.restore_tab, orient=tk.HORIZONTAL, length=100, mode='determinate')
-        self.restore_progress.pack(fill=tk.X, pady=10)
+        progress_frame = ttk.LabelFrame(restore_main_frame, text="还原进度", padding=15)
+        progress_frame.pack(fill=tk.X, pady=10)
+        
+        self.restore_progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=100, mode='determinate')
+        self.restore_progress.pack(fill=tk.X, pady=5)
 
         # 状态信息
         self.restore_status = tk.StringVar(value="就绪")
-        status_label = ttk.Label(self.restore_tab, textvariable=self.restore_status)
+        status_label = ttk.Label(progress_frame, textvariable=self.restore_status, font=('微软雅黑', 10))
         status_label.pack(anchor=tk.W, pady=5)
 
         # 还原线程
@@ -312,3 +371,130 @@ class BackupRestoreGUI:
         """取消还原"""
         self.restore_cancelled = True
         self.restore_status.set("正在取消还原...")
+
+    def init_settings_tab(self):
+        """初始化设置标签页"""
+        # 创建设置标签页的主框架
+        settings_main_frame = ttk.Frame(self.settings_tab, padding=10)
+        settings_main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 常规设置
+        general_frame = ttk.LabelFrame(settings_main_frame, text="常规设置", padding=15)
+        general_frame.pack(fill=tk.X, pady=10)
+        
+        # 默认备份路径设置
+        backup_path_frame = ttk.Frame(general_frame)
+        backup_path_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(backup_path_frame, text="默认备份路径:", width=15).pack(side=tk.LEFT, padx=(0, 10))
+        self.default_backup_path_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "backups"))
+        backup_path_entry = ttk.Entry(backup_path_frame, textvariable=self.default_backup_path_var, font=('微软雅黑', 10))
+        backup_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        ttk.Button(backup_path_frame, text="浏览", command=self.select_default_backup_path, width=10).pack(side=tk.RIGHT)
+        
+        # 默认还原路径设置
+        restore_path_frame = ttk.Frame(general_frame)
+        restore_path_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(restore_path_frame, text="默认还原路径:", width=15).pack(side=tk.LEFT, padx=(0, 10))
+        self.default_restore_path_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "restore"))
+        restore_path_entry = ttk.Entry(restore_path_frame, textvariable=self.default_restore_path_var, font=('微软雅黑', 10))
+        restore_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        ttk.Button(restore_path_frame, text="浏览", command=self.select_default_restore_path, width=10).pack(side=tk.RIGHT)
+        
+        # 默认压缩设置
+        compress_frame = ttk.Frame(general_frame)
+        compress_frame.pack(fill=tk.X, pady=5)
+        
+        self.default_compress_var = tk.BooleanVar(value=True)
+        compress_check = ttk.Checkbutton(compress_frame, text="默认启用压缩备份", variable=self.default_compress_var)
+        compress_check.pack(anchor=tk.W)
+        
+        # 关于信息
+        about_frame = ttk.LabelFrame(settings_main_frame, text="关于", padding=15)
+        about_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Label(about_frame, text="系统备份还原工具", font=('微软雅黑', 12, 'bold')).pack(anchor=tk.W, pady=5)
+        ttk.Label(about_frame, text=f"版本: V{__version__}").pack(anchor=tk.W, pady=2)
+        ttk.Label(about_frame, text="作者: AevirtCN").pack(anchor=tk.W, pady=2)
+        ttk.Label(about_frame, text="许可证: MIT").pack(anchor=tk.W, pady=2)
+        ttk.Label(about_frame, text="描述: 一个简单易用的系统备份还原工具").pack(anchor=tk.W, pady=2)
+        
+        # 保存按钮
+        button_frame = ttk.Frame(settings_main_frame)
+        button_frame.pack(fill=tk.X, pady=15)
+        
+        # 居中按钮
+        button_center_frame = ttk.Frame(button_frame)
+        button_center_frame.pack(anchor=tk.CENTER)
+        
+        ttk.Button(button_center_frame, text="保存设置", command=self.save_settings, width=15).pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Button(button_center_frame, text="恢复默认", command=self.restore_defaults, width=15).pack(side=tk.LEFT)
+
+    def select_default_backup_path(self):
+        """选择默认备份路径"""
+        directory = filedialog.askdirectory(title="选择默认备份路径")
+        if directory:
+            self.default_backup_path_var.set(directory)
+
+    def select_default_restore_path(self):
+        """选择默认还原路径"""
+        directory = filedialog.askdirectory(title="选择默认还原路径")
+        if directory:
+            self.default_restore_path_var.set(directory)
+
+    def load_config(self):
+        """加载配置文件"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                # 加载默认备份路径
+                if 'default_backup_path' in config:
+                    self.default_backup_path_var.set(config['default_backup_path'])
+                    self.backup_var.set(config['default_backup_path'])
+                
+                # 加载默认还原路径
+                if 'default_restore_path' in config:
+                    self.default_restore_path_var.set(config['default_restore_path'])
+                    self.restore_path_var.set(config['default_restore_path'])
+                
+                # 加载默认压缩设置
+                if 'default_compress' in config:
+                    self.default_compress_var.set(config['default_compress'])
+                    self.compress_var.set(config['default_compress'])
+        except Exception as e:
+            print(f"加载配置文件失败: {e}")
+
+    def save_settings(self):
+        """保存设置"""
+        try:
+            config = {
+                'default_backup_path': self.default_backup_path_var.get(),
+                'default_restore_path': self.default_restore_path_var.get(),
+                'default_compress': self.default_compress_var.get()
+            }
+            
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            
+            # 更新当前会话的设置
+            self.backup_var.set(self.default_backup_path_var.get())
+            self.restore_path_var.set(self.default_restore_path_var.get())
+            self.compress_var.set(self.default_compress_var.get())
+            
+            messagebox.showinfo("成功", "设置已保存")
+        except Exception as e:
+            messagebox.showerror("错误", f"保存设置失败: {str(e)}")
+
+    def restore_defaults(self):
+        """恢复默认设置"""
+        default_backup_path = os.path.join(os.path.expanduser("~"), "Desktop", "backups")
+        default_restore_path = os.path.join(os.path.expanduser("~"), "Desktop", "restore")
+        
+        self.default_backup_path_var.set(default_backup_path)
+        self.default_restore_path_var.set(default_restore_path)
+        self.default_compress_var.set(True)
+        
+        messagebox.showinfo("成功", "已恢复默认设置，请点击保存设置")

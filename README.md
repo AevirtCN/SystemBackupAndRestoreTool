@@ -1,0 +1,2 @@
+# SystemBackupAndRestoreTool
+基于Python的系统备份还原工具，提供图形界面，支持Windows平台的文件和系统备份还原操作

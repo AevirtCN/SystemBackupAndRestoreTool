@@ -35,9 +35,9 @@
 
 1. **克隆或下载项目**
    ```bash
-   git clone https://github.com/yourusername/SystemBackupAndRestoreTool.git
-   cd SystemBackupAndRestoreTool
-   ```
+git clone https://github.com/AevirtCN/SystemBackupAndRestoreTool.git
+cd SystemBackupAndRestoreTool
+```
 
 2. **运行工具**
    ```bash

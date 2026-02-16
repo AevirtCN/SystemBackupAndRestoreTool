@@ -121,8 +121,14 @@ class BackupRestoreGUI:
         # 备份格式选择
         ttk.Label(options_frame, text="备份格式:", width=10).pack(side=tk.LEFT, padx=(0, 10))
         self.backup_format_var = tk.StringVar(value="zip")
-        format_combobox = ttk.Combobox(options_frame, textvariable=self.backup_format_var, values=["zip", "ghost", "atih"], width=10)
-        format_combobox.pack(side=tk.LEFT)
+        format_combobox = ttk.Combobox(options_frame, textvariable=self.backup_format_var, values=["zip", "7z", "rar", "tar", "wim", "esd", "ghost", "atih"], width=10)
+        format_combobox.pack(side=tk.LEFT, padx=(0, 20))
+        
+        # 压缩程度选择
+        ttk.Label(options_frame, text="压缩程度:", width=10).pack(side=tk.LEFT, padx=(0, 10))
+        self.compress_level_var = tk.StringVar(value="标准")
+        level_combobox = ttk.Combobox(options_frame, textvariable=self.compress_level_var, values=["无", "快速", "标准", "最大", "极限"], width=10)
+        level_combobox.pack(side=tk.LEFT)
 
         # 备份按钮
         button_frame = ttk.Frame(backup_main_frame)
@@ -256,6 +262,7 @@ class BackupRestoreGUI:
         source_dir = self.source_var.get()
         backup_path = self.backup_var.get()
         backup_format = self.backup_format_var.get()
+        compress_level = self.compress_level_var.get()
 
         if not source_dir:
             messagebox.showerror("错误", "请选择源目录")
@@ -279,14 +286,14 @@ class BackupRestoreGUI:
         self.backup_cancelled = False
 
         # 启动备份线程
-        self.backup_thread = threading.Thread(target=self.run_backup, args=(source_dir, backup_path, backup_format))
+        self.backup_thread = threading.Thread(target=self.run_backup, args=(source_dir, backup_path, backup_format, compress_level))
         self.backup_thread.daemon = True
         self.backup_thread.start()
 
         # 检查线程状态
         self.root.after(100, self.check_backup_thread)
 
-    def run_backup(self, source_dir, backup_path, backup_format):
+    def run_backup(self, source_dir, backup_path, backup_format, compress_level):
         """运行备份任务"""
         try:
             def callback(progress, error=None):
@@ -299,13 +306,24 @@ class BackupRestoreGUI:
                     self.backup_progress['value'] = progress
                     self.backup_status.set(f"备份进度: {progress}%")
 
+            # 转换压缩程度为内部值
+            level_map = {
+                "无": "none",
+                "快速": "fast",
+                "标准": "standard",
+                "最大": "maximum",
+                "极限": "ultra"
+            }
+            internal_level = level_map.get(compress_level, "standard")
+
             if backup_format == "zip":
                 result = self.backup_restore.backup(
                     source_dir=source_dir,
                     backup_path=backup_path,
                     compress=self.compress_var.get(),
                     callback=callback,
-                    align_4k=self.align_4k_var.get()
+                    align_4k=self.align_4k_var.get(),
+                    compress_level=internal_level
                 )
 
                 if not self.backup_cancelled:

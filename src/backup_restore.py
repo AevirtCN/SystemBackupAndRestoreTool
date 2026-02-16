@@ -7,7 +7,7 @@ class BackupRestore:
     def __init__(self):
         pass
 
-    def backup(self, source_dir, backup_path, compress=True, callback=None, max_workers=4, align_4k=True):
+    def backup(self, source_dir, backup_path, compress=True, callback=None, max_workers=4, align_4k=True, compress_level='standard'):
         """
         备份目录
         :param source_dir: 源目录路径
@@ -16,6 +16,7 @@ class BackupRestore:
         :param callback: 进度回调函数，接收当前进度百分比
         :param max_workers: 最大工作线程数
         :param align_4k: 是否启用4K对齐(GPT分区)
+        :param compress_level: 压缩程度，可选值：none, fast, standard, maximum, ultra
         :return: 备份文件路径
         """
         try:
@@ -142,6 +143,16 @@ class BackupRestore:
         
         if ext == '.zip':
             return 'zip'
+        elif ext in ['.7z']:
+            return '7z'
+        elif ext in ['.rar']:
+            return 'rar'
+        elif ext in ['.tar', '.gz', '.tar.gz', '.tgz']:
+            return 'tar'
+        elif ext in ['.wim']:
+            return 'wim'
+        elif ext in ['.esd']:
+            return 'esd'
         elif ext in ['.gho', '.ghs']:
             return 'ghost'
         elif ext in ['.tib', '.tibx']:
